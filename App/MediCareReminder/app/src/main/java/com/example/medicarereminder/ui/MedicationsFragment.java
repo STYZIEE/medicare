@@ -1,6 +1,7 @@
 package com.example.medicarereminder.ui;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,6 +26,7 @@ import com.example.medicarereminder.utils.SharedPrefManager;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +35,8 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class MedicationsFragment extends Fragment {
+
+    private static final String TAG = "MedicationsFragment";
 
     private RecyclerView recyclerViewMedications;
     private ProgressBar progressBar;
@@ -91,25 +95,42 @@ public class MedicationsFragment extends Fragment {
             }
         });
 
+        // Debug token
+        debugTokenInfo();
+
         // Load medications
         loadMedications();
+    }
+
+    private void debugTokenInfo() {
+        String token = sharedPrefManager.getToken();
+        boolean isLoggedIn = sharedPrefManager.isLoggedIn();
+
+        Log.d(TAG, "=== TOKEN DEBUG ===");
+        Log.d(TAG, "Is logged in: " + isLoggedIn);
+        Log.d(TAG, "Token exists: " + (token != null));
+        Log.d(TAG, "Token length: " + (token != null ? token.length() : "NULL"));
+        if (token != null) {
+            Log.d(TAG, "Token preview: " + token.substring(0, Math.min(20, token.length())) + "...");
+        }
+        Log.d(TAG, "User ID: " + sharedPrefManager.getUserId());
+        Log.d(TAG, "Username: " + sharedPrefManager.getUsername());
+        Log.d(TAG, "Email: " + sharedPrefManager.getEmail());
+        Log.d(TAG, "=== END DEBUG ===");
     }
 
     private void loadMedications() {
         progressBar.setVisibility(View.VISIBLE);
         tvEmpty.setVisibility(View.GONE);
 
-        // Check if user is logged in first
         if (!sharedPrefManager.isLoggedIn()) {
             progressBar.setVisibility(View.GONE);
             Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // FIXED: Add "Bearer " prefix to token
         String token = "Bearer " + sharedPrefManager.getToken();
-
-        System.out.println("Loading medications with token: " + (token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "NULL"));
+        Log.d(TAG, "Loading medications with token: " + token);
 
         Call<List<Medication>> call = apiService.getMedications(token);
         call.enqueue(new Callback<List<Medication>>() {
@@ -117,36 +138,39 @@ public class MedicationsFragment extends Fragment {
             public void onResponse(Call<List<Medication>> call, Response<List<Medication>> response) {
                 progressBar.setVisibility(View.GONE);
 
+                Log.d(TAG, "Load medications response code: " + response.code());
+
                 if (response.isSuccessful() && response.body() != null) {
                     medications.clear();
                     medications.addAll(response.body());
                     adapter.notifyDataSetChanged();
                     updateEmptyState();
+                    Log.d(TAG, "Successfully loaded " + medications.size() + " medications");
                     Toast.makeText(requireContext(), "Loaded " + medications.size() + " medications", Toast.LENGTH_SHORT).show();
                 } else {
-                    String errorMessage = "Failed to load medications";
-                    if (response.code() == 401) {
-                        errorMessage = "Authentication failed. Please login again.";
-                    } else if (response.code() == 403) {
-                        errorMessage = "Access denied. Invalid token.";
-                    }
-                    Toast.makeText(requireContext(), errorMessage + " (Code: " + response.code() + ")", Toast.LENGTH_LONG).show();
-                    updateEmptyState();
+                    String errorMessage = "Failed to load medications. Code: " + response.code();
+                    Log.e(TAG, errorMessage);
 
-                    // Debug: Print response error
+                    // Try to read error body
                     if (response.errorBody() != null) {
                         try {
-                            System.out.println("Error response: " + response.errorBody().string());
-                        } catch (Exception e) {
-                            e.printStackTrace();
+                            String errorBody = response.errorBody().string();
+                            Log.e(TAG, "Error response body: " + errorBody);
+                            errorMessage += "\n" + errorBody;
+                        } catch (IOException e) {
+                            Log.e(TAG, "Error reading error body", e);
                         }
                     }
+
+                    Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show();
+                    updateEmptyState();
                 }
             }
 
             @Override
             public void onFailure(Call<List<Medication>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
+                Log.e(TAG, "Load medications network error", t);
                 Toast.makeText(requireContext(), "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
                 updateEmptyState();
             }
@@ -170,7 +194,6 @@ public class MedicationsFragment extends Fragment {
                     String time = etTime.getText().toString().trim();
                     String durationStr = etDuration.getText().toString().trim();
 
-                    // Validation
                     if (name.isEmpty()) {
                         Toast.makeText(requireContext(), "Medication name is required", Toast.LENGTH_SHORT).show();
                         return;
@@ -199,18 +222,17 @@ public class MedicationsFragment extends Fragment {
     private void addMedication(String name, String dosage, String time, Integer duration) {
         progressBar.setVisibility(View.VISIBLE);
 
-        // Check if user is logged in first
         if (!sharedPrefManager.isLoggedIn()) {
             progressBar.setVisibility(View.GONE);
             Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // FIXED: Add "Bearer " prefix to token
         String token = "Bearer " + sharedPrefManager.getToken();
         MedicationRequest request = new MedicationRequest(name, dosage, time, duration);
 
-        System.out.println("Adding medication with token: " + (token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "NULL"));
+        Log.d(TAG, "Adding medication: " + name);
+        Log.d(TAG, "Request: " + request.getName() + ", " + request.getDosage() + ", " + request.getTime() + ", " + request.getDuration());
 
         Call<Medication> call = apiService.addMedication(token, request);
         call.enqueue(new Callback<Medication>() {
@@ -218,33 +240,35 @@ public class MedicationsFragment extends Fragment {
             public void onResponse(Call<Medication> call, Response<Medication> response) {
                 progressBar.setVisibility(View.GONE);
 
+                Log.d(TAG, "Add medication response code: " + response.code());
+
                 if (response.isSuccessful() && response.body() != null) {
                     Medication addedMedication = response.body();
+                    Log.d(TAG, "Medication added successfully: " + addedMedication.getName());
                     Toast.makeText(requireContext(), "Medication added successfully!", Toast.LENGTH_SHORT).show();
-                    loadMedications(); // Refresh the list
+                    loadMedications();
                 } else {
-                    String errorMessage = "Failed to add medication";
-                    if (response.code() == 401) {
-                        errorMessage = "Authentication failed. Please login again.";
-                    } else if (response.code() == 403) {
-                        errorMessage = "Access denied. Invalid token.";
-                    }
-                    Toast.makeText(requireContext(), errorMessage + " (Code: " + response.code() + ")", Toast.LENGTH_LONG).show();
+                    String errorMessage = "Failed to add medication. Code: " + response.code();
+                    Log.e(TAG, errorMessage);
 
-                    // Debug: Print response error
                     if (response.errorBody() != null) {
                         try {
-                            System.out.println("Error response: " + response.errorBody().string());
-                        } catch (Exception e) {
-                            e.printStackTrace();
+                            String errorBody = response.errorBody().string();
+                            Log.e(TAG, "Error response body: " + errorBody);
+                            errorMessage += "\n" + errorBody;
+                        } catch (IOException e) {
+                            Log.e(TAG, "Error reading error body", e);
                         }
                     }
+
+                    Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show();
                 }
             }
 
             @Override
             public void onFailure(Call<Medication> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
+                Log.e(TAG, "Add medication network error", t);
                 Toast.makeText(requireContext(), "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
@@ -270,11 +294,68 @@ public class MedicationsFragment extends Fragment {
                 .setTitle("Edit Medication")
                 .setView(dialogView)
                 .setPositiveButton("Update", (dialog, which) -> {
-                    // For now, we'll just show a message since we don't have update endpoint
-                    Toast.makeText(requireContext(), "Update functionality coming soon!", Toast.LENGTH_SHORT).show();
+                    String name = etName.getText().toString().trim();
+                    String dosage = etDosage.getText().toString().trim();
+                    String time = etTime.getText().toString().trim();
+                    String durationStr = etDuration.getText().toString().trim();
+
+                    if (name.isEmpty()) {
+                        Toast.makeText(requireContext(), "Medication name is required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (time.isEmpty()) {
+                        Toast.makeText(requireContext(), "Time is required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    Integer duration = null;
+                    if (!durationStr.isEmpty()) {
+                        try {
+                            duration = Integer.parseInt(durationStr);
+                        } catch (NumberFormatException e) {
+                            Toast.makeText(requireContext(), "Please enter a valid number for duration", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    }
+
+                    updateMedication(medication.getId(), name, dosage, time, duration);
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private void updateMedication(Long medicationId, String name, String dosage, String time, Integer duration) {
+        progressBar.setVisibility(View.VISIBLE);
+
+        if (!sharedPrefManager.isLoggedIn()) {
+            progressBar.setVisibility(View.GONE);
+            Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String token = "Bearer " + sharedPrefManager.getToken();
+        MedicationRequest request = new MedicationRequest(name, dosage, time, duration);
+
+        Call<Medication> call = apiService.updateMedication(token, medicationId, request);
+        call.enqueue(new Callback<Medication>() {
+            @Override
+            public void onResponse(Call<Medication> call, Response<Medication> response) {
+                progressBar.setVisibility(View.GONE);
+
+                if (response.isSuccessful() && response.body() != null) {
+                    Toast.makeText(requireContext(), "Medication updated successfully!", Toast.LENGTH_SHORT).show();
+                    loadMedications();
+                } else {
+                    Toast.makeText(requireContext(), "Failed to update medication", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Medication> call, Throwable t) {
+                progressBar.setVisibility(View.GONE);
+                Toast.makeText(requireContext(), "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     private void showDeleteConfirmationDialog(Medication medication) {
@@ -282,11 +363,43 @@ public class MedicationsFragment extends Fragment {
                 .setTitle("Delete Medication")
                 .setMessage("Are you sure you want to delete " + medication.getName() + "?")
                 .setPositiveButton("Delete", (dialog, which) -> {
-                    // For now, we'll just show a message since we don't have delete endpoint
-                    Toast.makeText(requireContext(), "Delete functionality coming soon!", Toast.LENGTH_SHORT).show();
+                    deleteMedication(medication.getId());
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private void deleteMedication(Long medicationId) {
+        progressBar.setVisibility(View.VISIBLE);
+
+        if (!sharedPrefManager.isLoggedIn()) {
+            progressBar.setVisibility(View.GONE);
+            Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String token = "Bearer " + sharedPrefManager.getToken();
+
+        Call<Void> call = apiService.deleteMedication(token, medicationId);
+        call.enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                progressBar.setVisibility(View.GONE);
+
+                if (response.isSuccessful()) {
+                    Toast.makeText(requireContext(), "Medication deleted successfully!", Toast.LENGTH_SHORT).show();
+                    loadMedications();
+                } else {
+                    Toast.makeText(requireContext(), "Failed to delete medication", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                progressBar.setVisibility(View.GONE);
+                Toast.makeText(requireContext(), "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     private void updateEmptyState() {
@@ -302,7 +415,6 @@ public class MedicationsFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        // Refresh medications when fragment becomes visible
         loadMedications();
     }
 }

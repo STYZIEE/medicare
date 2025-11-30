@@ -34,4 +34,23 @@ public class MedicationController {
         MedicationResponse medication = medicationService.addMedication(userEmail, medicationRequest);
         return ResponseEntity.ok(medication);
     }
+
+    @PutMapping("/{medicationId}")
+    public ResponseEntity<MedicationResponse> updateMedication(
+            Authentication authentication,
+            @PathVariable Long medicationId,
+            @Valid @RequestBody MedicationRequest medicationRequest) {
+        String userEmail = authentication.getName();
+        MedicationResponse medication = medicationService.updateMedication(userEmail, medicationId, medicationRequest);
+        return ResponseEntity.ok(medication);
+    }
+
+    @DeleteMapping("/{medicationId}")
+    public ResponseEntity<?> deleteMedication(
+            Authentication authentication,
+            @PathVariable Long medicationId) {
+        String userEmail = authentication.getName();
+        medicationService.deleteMedication(userEmail, medicationId);
+        return ResponseEntity.ok().build();
+    }
 }
