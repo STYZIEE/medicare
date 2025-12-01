@@ -38,24 +38,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // Enable CORS first
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            
-            // Disable CSRF for stateless API
             .csrf(csrf -> csrf.disable())
-            
-            // Set session management to stateless
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            
-            // Configure authorization
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints
                 .requestMatchers(
-                    "/auth/**",           // All authentication endpoints
-                    "/test/public",       // Public test endpoint
-                    "/test/hello",        // Public hello endpoint
-                    "/h2-console/**",     // H2 console for development
-                    "/error"              // Error endpoint
+                    "/auth/**",           
+                    "/test/public",      
+                    "/test/hello", 
+                    "/error"             
                 ).permitAll()
                 
                 // All other endpoints require authentication

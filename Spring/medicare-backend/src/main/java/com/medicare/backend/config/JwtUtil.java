@@ -59,7 +59,7 @@ public class JwtUtil {
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + JWT_TOKEN_VALIDITY))
-                .signWith(SECRET_KEY, SignatureAlgorithm.HS512) // Use HS512 explicitly
+                .signWith(SECRET_KEY, SignatureAlgorithm.HS512)
                 .compact();
     }
     
