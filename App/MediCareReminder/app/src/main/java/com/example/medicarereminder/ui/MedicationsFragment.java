@@ -1,14 +1,16 @@
 package com.example.medicarereminder.ui;
 
+import android.app.TimePickerDialog;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,7 +24,10 @@ import com.example.medicarereminder.api.ApiService;
 import com.example.medicarereminder.api.MedicationRequest;
 import com.example.medicarereminder.api.RetrofitClient;
 import com.example.medicarereminder.model.Medication;
+import com.example.medicarereminder.utils.NotificationHelper;
+import com.example.medicarereminder.utils.NotificationUtils;
 import com.example.medicarereminder.utils.SharedPrefManager;
+import com.example.medicarereminder.utils.ToastUtils;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -47,6 +52,10 @@ public class MedicationsFragment extends Fragment {
     private List<Medication> medications = new ArrayList<>();
     private ApiService apiService;
     private SharedPrefManager sharedPrefManager;
+
+    // Notification time
+    private int notificationHour = 8;
+    private int notificationMinute = 0;
 
     public MedicationsFragment() {
         // Required empty public constructor
@@ -93,30 +102,26 @@ public class MedicationsFragment extends Fragment {
                 Medication medication = medications.get(position);
                 showDeleteConfirmationDialog(medication);
             }
+
+            @Override
+            public void onToggleNotificationClick(int position) {
+                Medication medication = medications.get(position);
+                NotificationHelper.toggleMedicationNotification(requireContext(), medication);
+                ToastUtils.showToast(requireContext(),
+                        medication.isNotificationEnabled() ?
+                                "Notifications ON for " + medication.getName() :
+                                "Notifications OFF for " + medication.getName());
+                adapter.notifyItemChanged(position);
+            }
         });
 
-        // Debug token
-        debugTokenInfo();
+        // Check notification permission for Android 13+
+        if (!NotificationUtils.checkNotificationPermission(requireContext())) {
+            NotificationUtils.requestNotificationPermission(requireActivity());
+        }
 
         // Load medications
         loadMedications();
-    }
-
-    private void debugTokenInfo() {
-        String token = sharedPrefManager.getToken();
-        boolean isLoggedIn = sharedPrefManager.isLoggedIn();
-
-        Log.d(TAG, "=== TOKEN DEBUG ===");
-        Log.d(TAG, "Is logged in: " + isLoggedIn);
-        Log.d(TAG, "Token exists: " + (token != null));
-        Log.d(TAG, "Token length: " + (token != null ? token.length() : "NULL"));
-        if (token != null) {
-            Log.d(TAG, "Token preview: " + token.substring(0, Math.min(20, token.length())) + "...");
-        }
-        Log.d(TAG, "User ID: " + sharedPrefManager.getUserId());
-        Log.d(TAG, "Username: " + sharedPrefManager.getUsername());
-        Log.d(TAG, "Email: " + sharedPrefManager.getEmail());
-        Log.d(TAG, "=== END DEBUG ===");
     }
 
     private void loadMedications() {
@@ -125,7 +130,7 @@ public class MedicationsFragment extends Fragment {
 
         if (!sharedPrefManager.isLoggedIn()) {
             progressBar.setVisibility(View.GONE);
-            Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show();
+            ToastUtils.showToast(requireContext(), "Please login first");
             return;
         }
 
@@ -146,7 +151,10 @@ public class MedicationsFragment extends Fragment {
                     adapter.notifyDataSetChanged();
                     updateEmptyState();
                     Log.d(TAG, "Successfully loaded " + medications.size() + " medications");
-                    Toast.makeText(requireContext(), "Loaded " + medications.size() + " medications", Toast.LENGTH_SHORT).show();
+                    ToastUtils.showToast(requireContext(), "Loaded " + medications.size() + " medications");
+
+                    // Schedule notifications for all loaded medications
+                    NotificationHelper.scheduleAllMedicationNotifications(requireContext(), medications);
                 } else {
                     String errorMessage = "Failed to load medications. Code: " + response.code();
                     Log.e(TAG, errorMessage);
@@ -162,7 +170,7 @@ public class MedicationsFragment extends Fragment {
                         }
                     }
 
-                    Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show();
+                    ToastUtils.showToast(requireContext(), errorMessage);
                     updateEmptyState();
                 }
             }
@@ -171,19 +179,42 @@ public class MedicationsFragment extends Fragment {
             public void onFailure(Call<List<Medication>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 Log.e(TAG, "Load medications network error", t);
-                Toast.makeText(requireContext(), "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                ToastUtils.showToast(requireContext(), "Network error: " + t.getMessage());
                 updateEmptyState();
             }
         });
     }
 
     private void showAddMedicationDialog() {
+        // Use existing dialog layout but with enhanced options
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_medication, null);
 
         TextInputEditText etName = dialogView.findViewById(R.id.etName);
         TextInputEditText etDosage = dialogView.findViewById(R.id.etDosage);
         TextInputEditText etTime = dialogView.findViewById(R.id.etTime);
         TextInputEditText etDuration = dialogView.findViewById(R.id.etDuration);
+        Button btnSetNotificationTime = dialogView.findViewById(R.id.btnSetNotificationTime);
+        LinearLayout daysContainer = dialogView.findViewById(R.id.daysContainer);
+
+        // Initialize days checkboxes (default all checked)
+        CheckBox[] dayCheckboxes = new CheckBox[7];
+        String[] dayNames = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+
+        for (int i = 0; i < dayCheckboxes.length; i++) {
+            dayCheckboxes[i] = new CheckBox(requireContext());
+            dayCheckboxes[i].setText(dayNames[i]);
+            dayCheckboxes[i].setChecked(true); // Default all days
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
+            );
+            params.setMargins(2, 2, 2, 2);
+            dayCheckboxes[i].setLayoutParams(params);
+            daysContainer.addView(dayCheckboxes[i]);
+        }
+
+        // Set notification time button
+        btnSetNotificationTime.setText(String.format("Notification: %02d:%02d", notificationHour, notificationMinute));
+        btnSetNotificationTime.setOnClickListener(v -> showTimePicker());
 
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Add Medication")
@@ -195,11 +226,11 @@ public class MedicationsFragment extends Fragment {
                     String durationStr = etDuration.getText().toString().trim();
 
                     if (name.isEmpty()) {
-                        Toast.makeText(requireContext(), "Medication name is required", Toast.LENGTH_SHORT).show();
+                        ToastUtils.showToast(requireContext(), "Medication name is required");
                         return;
                     }
                     if (time.isEmpty()) {
-                        Toast.makeText(requireContext(), "Time is required", Toast.LENGTH_SHORT).show();
+                        ToastUtils.showToast(requireContext(), "Time is required");
                         return;
                     }
 
@@ -208,23 +239,38 @@ public class MedicationsFragment extends Fragment {
                         try {
                             duration = Integer.parseInt(durationStr);
                         } catch (NumberFormatException e) {
-                            Toast.makeText(requireContext(), "Please enter a valid number for duration", Toast.LENGTH_SHORT).show();
+                            ToastUtils.showToast(requireContext(), "Please enter a valid number for duration");
                             return;
                         }
                     }
 
-                    addMedication(name, dosage, time, duration);
+                    addMedication(name, dosage, time, duration, dayCheckboxes);
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
-    private void addMedication(String name, String dosage, String time, Integer duration) {
+    private void showTimePicker() {
+        TimePickerDialog timePickerDialog = new TimePickerDialog(
+                requireContext(),
+                (view, hourOfDay, minute) -> {
+                    notificationHour = hourOfDay;
+                    notificationMinute = minute;
+                },
+                notificationHour,
+                notificationMinute,
+                true
+        );
+        timePickerDialog.setTitle("Set Notification Time");
+        timePickerDialog.show();
+    }
+
+    private void addMedication(String name, String dosage, String time, Integer duration, CheckBox[] dayCheckboxes) {
         progressBar.setVisibility(View.VISIBLE);
 
         if (!sharedPrefManager.isLoggedIn()) {
             progressBar.setVisibility(View.GONE);
-            Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show();
+            ToastUtils.showToast(requireContext(), "Please login first");
             return;
         }
 
@@ -232,7 +278,6 @@ public class MedicationsFragment extends Fragment {
         MedicationRequest request = new MedicationRequest(name, dosage, time, duration);
 
         Log.d(TAG, "Adding medication: " + name);
-        Log.d(TAG, "Request: " + request.getName() + ", " + request.getDosage() + ", " + request.getTime() + ", " + request.getDuration());
 
         Call<Medication> call = apiService.addMedication(token, request);
         call.enqueue(new Callback<Medication>() {
@@ -245,8 +290,22 @@ public class MedicationsFragment extends Fragment {
                 if (response.isSuccessful() && response.body() != null) {
                     Medication addedMedication = response.body();
                     Log.d(TAG, "Medication added successfully: " + addedMedication.getName());
-                    Toast.makeText(requireContext(), "Medication added successfully!", Toast.LENGTH_SHORT).show();
-                    loadMedications();
+
+                    // Set local notification settings (not sent to backend)
+                    addedMedication.setNotificationEnabled(true);
+                    addedMedication.setNotificationHour(notificationHour);
+                    addedMedication.setNotificationMinute(notificationMinute);
+
+                    // Set days from checkboxes
+                    for (int i = 0; i < dayCheckboxes.length; i++) {
+                        addedMedication.setNotificationDay(i, dayCheckboxes[i].isChecked());
+                    }
+
+                    // Schedule notification locally
+                    NotificationHelper.scheduleMedicationNotification(requireContext(), addedMedication);
+
+                    ToastUtils.showToast(requireContext(), "Medication added with notifications!");
+                    loadMedications(); // Reload to get fresh list
                 } else {
                     String errorMessage = "Failed to add medication. Code: " + response.code();
                     Log.e(TAG, errorMessage);
@@ -261,7 +320,7 @@ public class MedicationsFragment extends Fragment {
                         }
                     }
 
-                    Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show();
+                    ToastUtils.showToast(requireContext(), errorMessage);
                 }
             }
 
@@ -269,7 +328,7 @@ public class MedicationsFragment extends Fragment {
             public void onFailure(Call<Medication> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 Log.e(TAG, "Add medication network error", t);
-                Toast.makeText(requireContext(), "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                ToastUtils.showToast(requireContext(), "Network error: " + t.getMessage());
             }
         });
     }
@@ -281,6 +340,8 @@ public class MedicationsFragment extends Fragment {
         TextInputEditText etDosage = dialogView.findViewById(R.id.etDosage);
         TextInputEditText etTime = dialogView.findViewById(R.id.etTime);
         TextInputEditText etDuration = dialogView.findViewById(R.id.etDuration);
+        Button btnSetNotificationTime = dialogView.findViewById(R.id.btnSetNotificationTime);
+        LinearLayout daysContainer = dialogView.findViewById(R.id.daysContainer);
 
         // Pre-fill with existing data
         etName.setText(medication.getName());
@@ -288,6 +349,28 @@ public class MedicationsFragment extends Fragment {
         etTime.setText(medication.getTime());
         if (medication.getDuration() != null && medication.getDuration() > 0) {
             etDuration.setText(String.valueOf(medication.getDuration()));
+        }
+
+        // Set notification time from medication
+        notificationHour = medication.getNotificationHour();
+        notificationMinute = medication.getNotificationMinute();
+        btnSetNotificationTime.setText(String.format("Notification: %02d:%02d", notificationHour, notificationMinute));
+        btnSetNotificationTime.setOnClickListener(v -> showTimePicker());
+
+        // Initialize days checkboxes with current selection
+        CheckBox[] dayCheckboxes = new CheckBox[7];
+        String[] dayNames = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+
+        for (int i = 0; i < dayCheckboxes.length; i++) {
+            dayCheckboxes[i] = new CheckBox(requireContext());
+            dayCheckboxes[i].setText(dayNames[i]);
+            dayCheckboxes[i].setChecked(medication.getNotificationDays()[i]);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
+            );
+            params.setMargins(2, 2, 2, 2);
+            dayCheckboxes[i].setLayoutParams(params);
+            daysContainer.addView(dayCheckboxes[i]);
         }
 
         new MaterialAlertDialogBuilder(requireContext())
@@ -300,11 +383,11 @@ public class MedicationsFragment extends Fragment {
                     String durationStr = etDuration.getText().toString().trim();
 
                     if (name.isEmpty()) {
-                        Toast.makeText(requireContext(), "Medication name is required", Toast.LENGTH_SHORT).show();
+                        ToastUtils.showToast(requireContext(), "Medication name is required");
                         return;
                     }
                     if (time.isEmpty()) {
-                        Toast.makeText(requireContext(), "Time is required", Toast.LENGTH_SHORT).show();
+                        ToastUtils.showToast(requireContext(), "Time is required");
                         return;
                     }
 
@@ -313,23 +396,27 @@ public class MedicationsFragment extends Fragment {
                         try {
                             duration = Integer.parseInt(durationStr);
                         } catch (NumberFormatException e) {
-                            Toast.makeText(requireContext(), "Please enter a valid number for duration", Toast.LENGTH_SHORT).show();
+                            ToastUtils.showToast(requireContext(), "Please enter a valid number for duration");
                             return;
                         }
                     }
 
-                    updateMedication(medication.getId(), name, dosage, time, duration);
+                    // Cancel old notification
+                    NotificationHelper.cancelMedicationNotification(requireContext(), medication);
+
+                    // Update medication on backend
+                    updateMedication(medication.getId(), name, dosage, time, duration, dayCheckboxes);
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
-    private void updateMedication(Long medicationId, String name, String dosage, String time, Integer duration) {
+    private void updateMedication(Long medicationId, String name, String dosage, String time, Integer duration, CheckBox[] dayCheckboxes) {
         progressBar.setVisibility(View.VISIBLE);
 
         if (!sharedPrefManager.isLoggedIn()) {
             progressBar.setVisibility(View.GONE);
-            Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show();
+            ToastUtils.showToast(requireContext(), "Please login first");
             return;
         }
 
@@ -343,17 +430,32 @@ public class MedicationsFragment extends Fragment {
                 progressBar.setVisibility(View.GONE);
 
                 if (response.isSuccessful() && response.body() != null) {
-                    Toast.makeText(requireContext(), "Medication updated successfully!", Toast.LENGTH_SHORT).show();
+                    Medication updatedMedication = response.body();
+
+                    // Update local notification settings
+                    updatedMedication.setNotificationEnabled(true);
+                    updatedMedication.setNotificationHour(notificationHour);
+                    updatedMedication.setNotificationMinute(notificationMinute);
+
+                    // Set days from checkboxes
+                    for (int i = 0; i < dayCheckboxes.length; i++) {
+                        updatedMedication.setNotificationDay(i, dayCheckboxes[i].isChecked());
+                    }
+
+                    // Schedule new notification
+                    NotificationHelper.scheduleMedicationNotification(requireContext(), updatedMedication);
+
+                    ToastUtils.showToast(requireContext(), "Medication updated with notifications!");
                     loadMedications();
                 } else {
-                    Toast.makeText(requireContext(), "Failed to update medication", Toast.LENGTH_SHORT).show();
+                    ToastUtils.showToast(requireContext(), "Failed to update medication");
                 }
             }
 
             @Override
             public void onFailure(Call<Medication> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
-                Toast.makeText(requireContext(), "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                ToastUtils.showToast(requireContext(), "Network error: " + t.getMessage());
             }
         });
     }
@@ -363,6 +465,8 @@ public class MedicationsFragment extends Fragment {
                 .setTitle("Delete Medication")
                 .setMessage("Are you sure you want to delete " + medication.getName() + "?")
                 .setPositiveButton("Delete", (dialog, which) -> {
+                    // Cancel notification first
+                    NotificationHelper.cancelMedicationNotification(requireContext(), medication);
                     deleteMedication(medication.getId());
                 })
                 .setNegativeButton("Cancel", null)
@@ -374,7 +478,7 @@ public class MedicationsFragment extends Fragment {
 
         if (!sharedPrefManager.isLoggedIn()) {
             progressBar.setVisibility(View.GONE);
-            Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show();
+            ToastUtils.showToast(requireContext(), "Please login first");
             return;
         }
 
@@ -387,17 +491,17 @@ public class MedicationsFragment extends Fragment {
                 progressBar.setVisibility(View.GONE);
 
                 if (response.isSuccessful()) {
-                    Toast.makeText(requireContext(), "Medication deleted successfully!", Toast.LENGTH_SHORT).show();
+                    ToastUtils.showToast(requireContext(), "Medication deleted successfully!");
                     loadMedications();
                 } else {
-                    Toast.makeText(requireContext(), "Failed to delete medication", Toast.LENGTH_SHORT).show();
+                    ToastUtils.showToast(requireContext(), "Failed to delete medication");
                 }
             }
 
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
-                Toast.makeText(requireContext(), "Network error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                ToastUtils.showToast(requireContext(), "Network error: " + t.getMessage());
             }
         });
     }
@@ -417,4 +521,9 @@ public class MedicationsFragment extends Fragment {
         super.onResume();
         loadMedications();
     }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+}
 }

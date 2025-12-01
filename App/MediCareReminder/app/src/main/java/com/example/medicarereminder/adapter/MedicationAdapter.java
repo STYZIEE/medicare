@@ -7,6 +7,7 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.medicarereminder.R;
@@ -22,6 +23,7 @@ public class MedicationAdapter extends RecyclerView.Adapter<MedicationAdapter.Me
     public interface OnItemClickListener {
         void onEditClick(int position);
         void onDeleteClick(int position);
+        void onToggleNotificationClick(int position); // ADD THIS
     }
 
     public void setOnItemClickListener(OnItemClickListener listener) {
@@ -36,7 +38,7 @@ public class MedicationAdapter extends RecyclerView.Adapter<MedicationAdapter.Me
     @Override
     public MedicationViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_medication, parent, false);
+                .inflate(R.layout.item_medication, parent, false); // CHANGED LAYOUT
         return new MedicationViewHolder(view);
     }
 
@@ -54,6 +56,15 @@ public class MedicationAdapter extends RecyclerView.Adapter<MedicationAdapter.Me
             holder.tvDuration.setText("Duration: Not specified");
         }
 
+        // Notification status
+        if (medication.isNotificationEnabled()) {
+            holder.btnNotification.setText("🔔 ON");
+            holder.btnNotification.setBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.green));
+        } else {
+            holder.btnNotification.setText("🔕 OFF");
+            holder.btnNotification.setBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.gray));
+        }
+
         // Set click listeners
         holder.btnEdit.setOnClickListener(v -> {
             if (onItemClickListener != null) {
@@ -64,6 +75,12 @@ public class MedicationAdapter extends RecyclerView.Adapter<MedicationAdapter.Me
         holder.btnDelete.setOnClickListener(v -> {
             if (onItemClickListener != null) {
                 onItemClickListener.onDeleteClick(position);
+            }
+        });
+
+        holder.btnNotification.setOnClickListener(v -> {
+            if (onItemClickListener != null) {
+                onItemClickListener.onToggleNotificationClick(position);
             }
         });
     }
@@ -80,7 +97,7 @@ public class MedicationAdapter extends RecyclerView.Adapter<MedicationAdapter.Me
 
     static class MedicationViewHolder extends RecyclerView.ViewHolder {
         TextView tvMedName, tvDosage, tvTime, tvDuration;
-        Button btnEdit, btnDelete;
+        Button btnEdit, btnDelete, btnNotification;
 
         public MedicationViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -90,6 +107,7 @@ public class MedicationAdapter extends RecyclerView.Adapter<MedicationAdapter.Me
             tvDuration = itemView.findViewById(R.id.tvDuration);
             btnEdit = itemView.findViewById(R.id.btnEdit);
             btnDelete = itemView.findViewById(R.id.btnDelete);
+            btnNotification = itemView.findViewById(R.id.btnNotification);
         }
     }
 }
