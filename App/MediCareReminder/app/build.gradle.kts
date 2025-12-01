@@ -38,12 +38,31 @@ android {
 }
 
 dependencies {
+    // For circular image view
+    implementation ("de.hdodenhof:circleimageview:3.1.0")
+
+    // For image loading
+    implementation ("com.github.bumptech.glide:glide:4.16.0")
+    annotationProcessor ("com.github.bumptech.glide:compiler:4.16.0")
+
+    // For image picker (optional but recommended)
+    implementation ("com.github.dhaval2404:imagepicker:2.1")
+
+    // For date picker
+    implementation ("com.wdullaer:materialdatetimepicker:4.2.3")
     // Android Core
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.10.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    // OpenStreetMap for Android
+    implementation ("org.osmdroid:osmdroid-android:6.1.18")
 
+    // Location services (optional, for better location)
+    implementation ("org.osmdroid:osmdroid-mapsforge:6.1.18")
+
+    // Permission handling helper
+    implementation ("com.karumi:dexter:6.2.3")
     // Navigation Component
     implementation("androidx.navigation:navigation-fragment:2.7.4")
     implementation("androidx.navigation:navigation-ui:2.7.4")
