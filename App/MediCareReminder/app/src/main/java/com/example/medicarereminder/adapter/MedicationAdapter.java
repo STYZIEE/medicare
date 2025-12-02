@@ -56,7 +56,6 @@ public class MedicationAdapter extends RecyclerView.Adapter<MedicationAdapter.Me
             holder.tvDuration.setText("Duration: Not specified");
         }
 
-        // Notification status
         if (medication.isNotificationEnabled()) {
             holder.btnNotification.setText("🔔 ON");
             holder.btnNotification.setBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.green));
@@ -65,7 +64,6 @@ public class MedicationAdapter extends RecyclerView.Adapter<MedicationAdapter.Me
             holder.btnNotification.setBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.gray));
         }
 
-        // Set click listeners
         holder.btnEdit.setOnClickListener(v -> {
             if (onItemClickListener != null) {
                 onItemClickListener.onEditClick(position);

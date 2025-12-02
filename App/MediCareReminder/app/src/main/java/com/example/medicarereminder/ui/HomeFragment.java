@@ -35,44 +35,35 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 public class HomeFragment extends Fragment implements LocationListener {
 
-    // UI Elements
     private TextView tvWelcome;
     private TextView tvLocationStatus;
     private MapView mapView;
     private FloatingActionButton fabMyLocation;
     private ProgressBar progressBar;
 
-    // Map Elements
     private IMapController mapController;
     private MyLocationNewOverlay myLocationOverlay;
 
-    // Location Variables
     private SharedPrefManager sharedPrefManager;
     private LocationManager locationManager;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
 
-    // Add these constants for better control
     private static final long MIN_TIME_BETWEEN_UPDATES = 5000; // 5 seconds
     private static final float MIN_DISTANCE_CHANGE_FOR_UPDATES = 10; // 10 meters
 
-    // Current Location
     private double currentLatitude = 0.0;
     private double currentLongitude = 0.0;
 
     public HomeFragment() {
-        // Required empty public constructor
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-
-        // Initialize
         sharedPrefManager = SharedPrefManager.getInstance(requireContext());
         locationManager = (LocationManager) requireActivity().getSystemService(Context.LOCATION_SERVICE);
 
-        // Initialize osmdroid configuration - FIXED: Added this line
         Configuration.getInstance().load(requireContext(),
                 requireContext().getSharedPreferences("osmdroid", Context.MODE_PRIVATE));
         Configuration.getInstance().setUserAgentValue(requireContext().getPackageName());
@@ -83,63 +74,44 @@ public class HomeFragment extends Fragment implements LocationListener {
         mapView = view.findViewById(R.id.mapView);
         fabMyLocation = view.findViewById(R.id.fabMyLocation);
         progressBar = view.findViewById(R.id.progressBar);
-
-        // Setup map
         setupMap();
-
-        // Display welcome message
         String username = sharedPrefManager.getUsername();
         if (username != null && !username.isEmpty()) {
             tvWelcome.setText("Welcome, " + username + "!");
         }
-
-        // Load last saved location if available
         if (sharedPrefManager.hasSavedLocation()) {
             double lastLat = sharedPrefManager.getLastLatitude();
             double lastLon = sharedPrefManager.getLastLongitude();
             // Update status text
             tvLocationStatus.setText(String.format("Last location: %.4f, %.4f", lastLat, lastLon));
         }
-
-        // Set click listener for My Location button
         fabMyLocation.setOnClickListener(v -> requestLocation());
 
         return view;
     }
 
     private void setupMap() {
-        // Set tile source to OpenStreetMap
         mapView.setTileSource(TileSourceFactory.MAPNIK);
         mapView.setMultiTouchControls(true);
-
-        // Set zoom controls - FIXED: Added zoom controls setting
         mapView.getZoomController().setVisibility(
                 org.osmdroid.views.CustomZoomButtonsController.Visibility.SHOW_AND_FADEOUT);
         mapView.setMinZoomLevel(3.0);
         mapView.setMaxZoomLevel(19.0);
-
-        // Get map controller
         mapController = mapView.getController();
         mapController.setZoom(15.0);
-
-        // Set default location (center of map) - FIXED: Check for saved location first
         if (sharedPrefManager.hasSavedLocation()) {
             double lastLat = sharedPrefManager.getLastLatitude();
             double lastLon = sharedPrefManager.getLastLongitude();
             GeoPoint defaultPoint = new GeoPoint(lastLat, lastLon);
             mapController.setCenter(defaultPoint);
         } else {
-            GeoPoint defaultPoint = new GeoPoint(33.8938, 35.5018); // Default location
+            GeoPoint defaultPoint = new GeoPoint(33.8938, 35.5018);
             mapController.setCenter(defaultPoint);
         }
-
-        // Initialize location overlay - FIXED: Added proper initialization
         myLocationOverlay = new MyLocationNewOverlay(
                 new GpsMyLocationProvider(requireContext()), mapView);
         myLocationOverlay.setEnabled(false);
         mapView.getOverlays().add(myLocationOverlay);
-
-        // Enable follow location - FIXED: Added this for better UX
         myLocationOverlay.setDrawAccuracyEnabled(true);
     }
 
@@ -152,7 +124,6 @@ public class HomeFragment extends Fragment implements LocationListener {
 
     private void requestLocation() {
         if (!checkLocationPermission()) {
-            // Request permission
             ActivityCompat.requestPermissions(requireActivity(),
                     new String[]{
                             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -162,12 +133,10 @@ public class HomeFragment extends Fragment implements LocationListener {
             return;
         }
 
-        // Permission already granted, get location
         getCurrentLocation();
     }
 
     private void getCurrentLocation() {
-        // Check if location services are enabled
         if (!isLocationEnabled()) {
             showSafeToast("Please enable location services in your device settings");
             return;
@@ -177,7 +146,6 @@ public class HomeFragment extends Fragment implements LocationListener {
         tvLocationStatus.setText("Getting your location...");
 
         try {
-            // Enable location overlay on map - FIXED: This must come before requesting updates
             if (myLocationOverlay != null) {
                 myLocationOverlay.setEnabled(true);
                 myLocationOverlay.enableMyLocation();
@@ -185,13 +153,11 @@ public class HomeFragment extends Fragment implements LocationListener {
                 myLocationOverlay.setDrawAccuracyEnabled(true);
             }
 
-            // Get last known location first (fastest)
             Location lastLocation = getLastKnownLocation();
             if (lastLocation != null) {
                 updateLocation(lastLocation);
             }
 
-            // Request fresh location updates
             if (checkLocationPermission()) {
                 if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                     locationManager.requestLocationUpdates(
@@ -233,12 +199,9 @@ public class HomeFragment extends Fragment implements LocationListener {
 
         try {
             if (checkLocationPermission()) {
-                // Try GPS first
                 Location gpsLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                // Try network
                 Location networkLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
 
-                // Use the most recent location
                 if (gpsLocation != null && networkLocation != null) {
                     if (gpsLocation.getTime() > networkLocation.getTime()) {
                         bestLocation = gpsLocation;
@@ -252,7 +215,6 @@ public class HomeFragment extends Fragment implements LocationListener {
                 }
             }
         } catch (Exception e) {
-            // Ignore
         }
 
         return bestLocation;
@@ -268,19 +230,12 @@ public class HomeFragment extends Fragment implements LocationListener {
     private void updateLocation(Location location) {
         currentLatitude = location.getLatitude();
         currentLongitude = location.getLongitude();
-
-        // Update UI on main thread
         requireActivity().runOnUiThread(() -> {
             String locationText = String.format("Location: %.6f, %.6f",
                     currentLatitude, currentLongitude);
             tvLocationStatus.setText(locationText);
-
-            // Move map to location
             moveMapToLocation(currentLatitude, currentLongitude);
-
-            // Save to shared preferences
             sharedPrefManager.saveLastLocation(currentLatitude, currentLongitude);
-
             progressBar.setVisibility(View.GONE);
         });
     }
@@ -290,12 +245,10 @@ public class HomeFragment extends Fragment implements LocationListener {
             GeoPoint geoPoint = new GeoPoint(latitude, longitude);
             mapController.animateTo(geoPoint);
 
-            // Only zoom if we're at default zoom
             if (mapView.getZoomLevelDouble() < 16.0) {
                 mapController.setZoom(16.0);
             }
 
-            // Enable follow location on the overlay
             if (myLocationOverlay != null) {
                 myLocationOverlay.enableFollowLocation();
             }
@@ -311,10 +264,8 @@ public class HomeFragment extends Fragment implements LocationListener {
             if (grantResults.length > 0 &&
                     (grantResults[0] == PackageManager.PERMISSION_GRANTED ||
                             (grantResults.length > 1 && grantResults[1] == PackageManager.PERMISSION_GRANTED))) {
-                // Permission granted
                 getCurrentLocation();
             } else {
-                // Permission denied
                 showSafeToast("Location permission is required to show your location");
                 tvLocationStatus.setText("Location: Permission denied");
                 progressBar.setVisibility(View.GONE);
@@ -359,14 +310,11 @@ public class HomeFragment extends Fragment implements LocationListener {
                 myLocationOverlay.setEnabled(false);
             }
         } catch (Exception e) {
-            // Ignore
         }
     }
 
-    // Required LocationListener methods
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
-        // Handle provider status changes if needed
     }
 
     @Override

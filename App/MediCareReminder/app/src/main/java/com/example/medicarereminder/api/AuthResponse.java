@@ -9,8 +9,6 @@ public class AuthResponse {
     private User user;
 
     public AuthResponse() {}
-
-    // Getters and Setters
     public boolean isSuccess() { return success; }
     public void setSuccess(boolean success) { this.success = success; }
 

@@ -15,21 +15,18 @@ import retrofit2.http.Path;
 
 public interface ApiService {
 
-    // Auth endpoints
     @POST("auth/register")
     Call<AuthResponse> register(@Body RegisterRequest request);
 
     @POST("auth/login")
     Call<AuthResponse> login(@Body LoginRequest request);
 
-    // Medication endpoints
     @GET("medications")
     Call<List<Medication>> getMedications(@Header("Authorization") String token);
 
     @POST("medications")
     Call<Medication> addMedication(@Header("Authorization") String token, @Body MedicationRequest request);
 
-    // ADD UPDATE AND DELETE ENDPOINTS
     @PUT("medications/{medicationId}")
     Call<Medication> updateMedication(
             @Header("Authorization") String token,

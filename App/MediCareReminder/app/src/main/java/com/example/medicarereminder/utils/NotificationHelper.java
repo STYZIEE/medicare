@@ -17,11 +17,7 @@ public class NotificationHelper {
             Log.d(TAG, "No medications to schedule");
             return;
         }
-
-        // First, cancel all existing alarms to avoid duplicates
         cancelAllMedicationNotifications(context, medications);
-
-        // Schedule notifications for each medication
         for (Medication medication : medications) {
             if (medication.isNotificationEnabled()) {
                 scheduleMedicationNotification(context, medication);
@@ -35,13 +31,10 @@ public class NotificationHelper {
         if (medication == null || !medication.isNotificationEnabled()) {
             return;
         }
-
-        // Generate unique request code based on medication ID
         int requestCode = medication.getId() != null ?
                 medication.getId().intValue() + 1000 :
                 (int) (System.currentTimeMillis() % 100000);
 
-        // Convert days array to Calendar format
         boolean[] days = medication.getNotificationDays();
         List<Integer> calendarDays = new ArrayList<>();
 

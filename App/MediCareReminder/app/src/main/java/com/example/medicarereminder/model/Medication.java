@@ -79,18 +79,14 @@ public class Medication {
         }
     }
 
-    // Helper method to parse time string into hour and minute
     private void parseTimeString() {
         if (time != null && !time.isEmpty()) {
             try {
-                // Handle formats like "08:30", "8:30", "08:30 AM", etc.
-                String cleanTime = time.replaceAll("[^0-9:]", ""); // Remove non-numeric except colon
+                String cleanTime = time.replaceAll("[^0-9:]", "");
                 String[] parts = cleanTime.split(":");
                 if (parts.length >= 2) {
                     notificationHour = Integer.parseInt(parts[0]);
                     notificationMinute = Integer.parseInt(parts[1]);
-
-                    // Convert to 24-hour format if needed
                     if (time.toLowerCase().contains("pm") && notificationHour < 12) {
                         notificationHour += 12;
                     }
@@ -99,7 +95,6 @@ public class Medication {
                     }
                 }
             } catch (NumberFormatException e) {
-                // Keep default values if parsing fails
             }
         }
     }

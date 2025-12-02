@@ -27,8 +27,6 @@ public class AlarmUtils {
 
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent alarmIntent = new Intent(context, AlarmReceiver.class);
-
-        // Add medication details to intent
         alarmIntent.putExtra("medication_name", medicationName);
         alarmIntent.putExtra("dosage", dosage);
         alarmIntent.putExtra("request_code", requestCode);
@@ -42,21 +40,16 @@ public class AlarmUtils {
             pendingIntent = PendingIntent.getBroadcast(context,
                     requestCode, alarmIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         }
-
-        // Calculate the time for today
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
         calendar.set(Calendar.HOUR_OF_DAY, hour);
         calendar.set(Calendar.MINUTE, minute);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
-
-        // If the time has already passed today, schedule for tomorrow
         if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
             calendar.add(Calendar.DAY_OF_YEAR, 1);
         }
 
-        // Schedule the alarm
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (alarmManager.canScheduleExactAlarms()) {
                 alarmManager.setExactAndAllowWhileIdle(
@@ -87,8 +80,6 @@ public class AlarmUtils {
 
         Log.d("AlarmUtils", "Alarm scheduled for " + hour + ":" + minute +
                 " (Medication: " + medicationName + ")");
-
-        // Save alarm to SharedPreferences for restoration after reboot
         saveAlarmToPreferences(context, medicationName, dosage, hour, minute, daysOfWeek, requestCode);
     }
 
@@ -109,8 +100,6 @@ public class AlarmUtils {
         pendingIntent.cancel();
 
         Log.d("AlarmUtils", "Alarm cancelled with request code: " + requestCode);
-
-        // Remove from saved alarms
         removeAlarmFromPreferences(context, requestCode);
     }
 
@@ -180,6 +169,6 @@ public class AlarmUtils {
                     context.getSystemService(android.app.NotificationManager.class);
             return notificationManager.areNotificationsEnabled();
         }
-        return true; // Permission not required before Android 13
+        return true;
     }
 }

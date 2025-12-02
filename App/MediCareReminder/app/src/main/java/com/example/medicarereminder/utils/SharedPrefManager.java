@@ -10,12 +10,9 @@ public class SharedPrefManager {
     private static final String KEY_USERNAME = "key_username";
     private static final String KEY_EMAIL = "key_email";
 
-    // Location keys
     private static final String KEY_LAST_LATITUDE = "last_latitude";
     private static final String KEY_LAST_LONGITUDE = "last_longitude";
     private static final String KEY_LAST_LOCATION_TIME = "last_location_time";
-
-    // Profile picture key
     private static final String KEY_PROFILE_PICTURE_URI = "profile_picture_uri";
 
     private static SharedPrefManager instance;
@@ -32,7 +29,6 @@ public class SharedPrefManager {
         return instance;
     }
 
-    // Save user data after login
     public void saveUserData(String token, Long userId, String username, String email) {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -45,37 +41,30 @@ public class SharedPrefManager {
         editor.apply();
     }
 
-    // Check if user is logged in
     public boolean isLoggedIn() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         return sharedPreferences.getString(KEY_TOKEN, null) != null;
     }
 
-    // Get stored token
     public String getToken() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         return sharedPreferences.getString(KEY_TOKEN, null);
     }
 
-    // Get user ID
     public Long getUserId() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         return sharedPreferences.getLong(KEY_USER_ID, -1);
     }
 
-    // Get username
     public String getUsername() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         return sharedPreferences.getString(KEY_USERNAME, null);
     }
-
-    // Get email
     public String getEmail() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         return sharedPreferences.getString(KEY_EMAIL, null);
     }
 
-    // Clear user data on logout
     public void clearUserData() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -83,9 +72,6 @@ public class SharedPrefManager {
         editor.apply();
     }
 
-    // ============ PROFILE PICTURE METHODS ============
-
-    // Save profile picture URI
     public void saveProfilePictureUri(String uriString) {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -93,19 +79,16 @@ public class SharedPrefManager {
         editor.apply();
     }
 
-    // Get profile picture URI
     public String getProfilePictureUri() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         return sharedPreferences.getString(KEY_PROFILE_PICTURE_URI, null);
     }
 
-    // Check if profile picture exists
     public boolean hasProfilePicture() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         return sharedPreferences.getString(KEY_PROFILE_PICTURE_URI, null) != null;
     }
 
-    // Clear profile picture
     public void clearProfilePicture() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -113,9 +96,6 @@ public class SharedPrefManager {
         editor.apply();
     }
 
-    // ============ LOCATION METHODS ============
-
-    // Save last known location
     public void saveLastLocation(double latitude, double longitude) {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -127,7 +107,6 @@ public class SharedPrefManager {
         editor.apply();
     }
 
-    // Get last known location as float array [latitude, longitude]
     public float[] getLastLocation() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         float latitude = sharedPreferences.getFloat(KEY_LAST_LATITUDE, 0);
@@ -135,13 +114,11 @@ public class SharedPrefManager {
         return new float[]{latitude, longitude};
     }
 
-    // Get last location timestamp
     public long getLastLocationTime() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         return sharedPreferences.getLong(KEY_LAST_LOCATION_TIME, 0);
     }
 
-    // Check if we have a saved location
     public boolean hasSavedLocation() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         float latitude = sharedPreferences.getFloat(KEY_LAST_LATITUDE, 0);
@@ -149,19 +126,16 @@ public class SharedPrefManager {
         return latitude != 0 && longitude != 0;
     }
 
-    // Get last latitude
     public double getLastLatitude() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         return sharedPreferences.getFloat(KEY_LAST_LATITUDE, 0);
     }
 
-    // Get last longitude
     public double getLastLongitude() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         return sharedPreferences.getFloat(KEY_LAST_LONGITUDE, 0);
     }
 
-    // Clear location data
     public void clearLocationData() {
         SharedPreferences sharedPreferences = context.getSharedPreferences(SHARED_PREF_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();

@@ -47,8 +47,6 @@ public class BootReceiver extends BroadcastReceiver {
                 }
 
                 int requestCode = alarmObj.getInt("request_code");
-
-                // Reschedule the alarm
                 AlarmUtils.scheduleRepeatingAlarm(
                         context,
                         medicationName,

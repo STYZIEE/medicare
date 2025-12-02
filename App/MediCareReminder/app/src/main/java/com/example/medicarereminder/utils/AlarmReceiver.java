@@ -32,8 +32,6 @@ public class AlarmReceiver extends BroadcastReceiver {
 
     private void showNotification(Context context, String medicationName, String dosage, int requestCode) {
         createNotificationChannel(context);
-
-        // Create intent to open app when notification is tapped
         Intent appIntent = new Intent(context, MainActivity.class);
         appIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent;
@@ -45,8 +43,6 @@ public class AlarmReceiver extends BroadcastReceiver {
             pendingIntent = PendingIntent.getActivity(context,
                     requestCode, appIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         }
-
-        // Build notification
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification) // You need to create this icon
                 .setContentTitle("Medication Reminder")

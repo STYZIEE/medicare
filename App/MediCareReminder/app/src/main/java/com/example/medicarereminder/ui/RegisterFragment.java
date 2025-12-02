@@ -143,12 +143,10 @@ public class RegisterFragment extends Fragment {
     }
 
     private void navigateToLogin() {
-        // Navigate back to login
         Navigation.findNavController(requireView()).navigate(R.id.action_registerFragment_to_loginFragment);
     }
 
     private void navigateToMainApp() {
-        // Navigate to main app
         Navigation.findNavController(requireView()).navigate(R.id.action_registerFragment_to_mainNavigationFragment);
     }
 

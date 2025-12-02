@@ -14,8 +14,6 @@ public class User {
         this.email = email;
         this.dateOfBirth = dateOfBirth;
     }
-
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
